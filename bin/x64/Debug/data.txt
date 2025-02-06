@@ -1,0 +1,16 @@
+speed 300
+actime 1000
+dctime 1000
+AREA_LOW 2300
+AREA_HIGH 3800
+ROUND_LOW 170
+ROUND_HIGH 320
+offset 161.8
+N*N 11
+EmptyCount 3
+ExposureTime 3000
+Path EMPTY
+SaveXYZ 3
+test1 12 34 56
+test2 45 56 67
+test3 1 2 3
