@@ -8,10 +8,10 @@ namespace MotorControl_WinForm
 {
     public static class Logger
     {
-        private static Form1 _form;
+        private static Main _form;
 
         // Form1을 등록하는 메서드
-        public static void Initialize(Form1 form)
+        public static void Initialize(Main form)
         {
             _form = form;
         }

@@ -139,6 +139,26 @@ namespace MotorControl_WinForm
 
             return values;
         }
+        public void DeleteXYZ(int index)
+        {
+            var lines = File.ReadAllLines(filePath).ToList();
+
+            if (lines.Count <= ColumnIndex.SAVEXYZ) return; // 파일 형식 이상 체크
+
+            var headerParts = lines[ColumnIndex.SAVEXYZ].Split(' '); // "SaveXYZ XX"
+            if (headerParts.Length < 2 || !int.TryParse(headerParts[1], out int count)) return; // 숫자 변환 체크
+
+            if (index < 0 || index >= count) return; // 삭제할 인덱스가 범위 초과 시 종료
+
+            // XYZ 데이터 삭제
+            lines.RemoveAt(ColumnIndex.SAVEXYZ + index + 1); // 인덱스+1 번째 줄 삭제 (첫 줄은 헤더이므로 유지)
+
+            // SaveXYZ 개수 업데이트
+            lines[ColumnIndex.SAVEXYZ] = $"SaveXYZ {count - 1}";
+
+            // 파일 저장
+            File.WriteAllLines(filePath, lines);
+        }
 
     }
     public static class ColumnIndex

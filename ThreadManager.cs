@@ -8,7 +8,7 @@ using System.Collections.Concurrent;
 
 namespace MotorControl_WinForm
 {
-    internal class ThreadManager
+    public class ThreadManager
     {
         private readonly object lockObject = new object(); // 작업 관리용 Lock
         private readonly Queue<Action> uiTaskQueue = new Queue<Action>();  // UI 스레드에서 처리할 작업 큐

@@ -10,7 +10,7 @@ using OpenCvSharp.Extensions;
 
 namespace MotorControl_WinForm
 {
-    internal class CameraManager
+    public class CameraManager
     {
         private CancellationTokenSource _cancellationTokenSource;
 

@@ -19,19 +19,22 @@ using OpenCvSharp.XImgProc;
 
 namespace MotorControl_WinForm
 {
-    public partial class Form1 : Form
+    public partial class Main : Form
     {
         MotorControlManager motorControlManager = new MotorControlManager();
         ThreadManager threadManager = new ThreadManager();
         CameraManager cameraManager = new CameraManager();
         TextFileManager textFileManager = new TextFileManager();
+        ImageProcessing imageProcessing = new ImageProcessing();
         PNT_DATA_EX PntData;
         Mat img = null;
         private System.Windows.Forms.Timer positionUpdateTimer;
         bool isExpanded = false;
+        bool isProcessingImg = false;
+        bool isJogMode = false;
         int currentY = 10;
         //Camera  camera;
-        public Form1()
+        public Main()
         {
             InitializeComponent();
             Logger.Initialize(this);
@@ -65,92 +68,102 @@ namespace MotorControl_WinForm
             //HomeReturn();
             cameraManager.OnImageUpdated += (mat, count) =>
             {
-                // UI 업데이트는 Invoke를 사용해야 함
-                Invoke(new Action(() =>
+                if (isProcessingImg)
+                    return;
+                // 기존 Mat 객체 삭제 (메모리 누수 방지)
+                img?.Dispose();
+
+                // Mat으로 변환하여 img에 저장
+                img = mat.Clone();
+
+                ShowImg();
+                Invoke(new Action(() => label27.Text = count.ToString()));
+            };
+            imageProcessing.OnProcessingCompleted += (mat) =>
+            {
+                // 기존 Mat 객체 삭제 (메모리 누수 방지)
+                img?.Dispose();
+
+                // Mat으로 변환하여 img에 저장
+                img = mat.Clone();
+
+                ShowImg();
+                isProcessingImg = true;
+            };
+
+        }
+        public void ShowImg()
+        {
+            Invoke(new Action(() =>
+            {
+                // 원본 이미지 크기 구하기
+                int width = img.Width;
+                int height = img.Height;
+
+                // 중심 좌표 계산
+                int centerX = width / 2;
+                int centerY = height / 2;
+
+                // 기존 이미지 삭제
+                pictureBox1.Image?.Dispose();
+                Mat displayMat;
+
+                if (isExpanded)
                 {
-                    // 기존 Mat 객체 삭제 (메모리 누수 방지)
-                    img?.Dispose();
-
-                    // Mat으로 변환하여 img에 저장
-                    img = mat.Clone();
-
-                    // 원본 이미지 크기 구하기
-                    int width = mat.Width;
-                    int height = mat.Height;
-
-                    // 중심 좌표 계산
-                    int centerX = width / 2;
-                    int centerY = height / 2;
-
-                    // 기존 이미지 삭제
-                    pictureBox1.Image?.Dispose();
-
-                    Mat displayMat;
-
-                    if (isExpanded)
+                    // tb_Expanded의 값 가져오기 (예: 200% -> 2배 확대)
+                    if (int.TryParse(tb_Expanded.Text, out int expandPercent))
                     {
-                        // tb_Expanded의 값 가져오기 (예: 200% -> 2배 확대)
-                        if (int.TryParse(tb_Expanded.Text, out int expandPercent))
-                        {
-                            double scaleFactor = expandPercent / 100.0; // 확대 비율
-                            int cropWidth = (int)(width / scaleFactor);
-                            int cropHeight = (int)(height / scaleFactor);
+                        double scaleFactor = expandPercent / 100.0; // 확대 비율
+                        int cropWidth = (int)(width / scaleFactor);
+                        int cropHeight = (int)(height / scaleFactor);
 
-                            // 확대할 영역 계산 (중앙 확대)
-                            int cropX = Math.Max(0, centerX - cropWidth / 2);
-                            int cropY = Math.Max(0, centerY - cropHeight / 2);
-                            cropWidth = Math.Min(cropWidth, width - cropX);
-                            cropHeight = Math.Min(cropHeight, height - cropY);
+                        // 확대할 영역 계산 (중앙 확대)
+                        int cropX = Math.Max(0, centerX - cropWidth / 2);
+                        int cropY = Math.Max(0, centerY - cropHeight / 2);
+                        cropWidth = Math.Min(cropWidth, width - cropX);
+                        cropHeight = Math.Min(cropHeight, height - cropY);
 
-                            // ROI(Region of Interest) 설정 후 잘라내기
-                            Mat croppedMat = new Mat(mat, new OpenCvSharp.Rect(cropX, cropY, cropWidth, cropHeight));
+                        // ROI(Region of Interest) 설정 후 잘라내기
+                        Mat croppedMat = new Mat(img, new OpenCvSharp.Rect(cropX, cropY, cropWidth, cropHeight));
 
-                            // PictureBox 크기에 맞춰 확대
-                            displayMat = new Mat();
-                            Cv2.Resize(croppedMat, displayMat, new OpenCvSharp.Size(width, height), 0, 0, InterpolationFlags.Linear);
+                        // PictureBox 크기에 맞춰 확대
+                        displayMat = new Mat();
+                        Cv2.Resize(croppedMat, displayMat, new OpenCvSharp.Size(width, height), 0, 0, InterpolationFlags.Linear);
 
-                            // 메모리 해제
-                            croppedMat.Dispose();
-                        }
-                        else
-                        {
-                            displayMat = mat.Clone(); // 변환 실패 시 원본 유지
-                        }
+                        // 메모리 해제
+                        croppedMat.Dispose();
                     }
                     else
                     {
-                        // 원본 그대로 사용
-                        displayMat = mat.Clone();
+                        displayMat = img.Clone(); // 변환 실패 시 원본 유지
                     }
+                }
+                else
+                {
+                    displayMat = img.Clone();
+                }
+                // 확대된 이미지에 빨간색 십자가 그리기 (수직선은 확대된 후에 그림)
+                Scalar redColor = new Scalar(0, 0, 255); // BGR 순서로 빨간색
+                int thickness = 10; // 선 두께
 
-                    // 확대된 이미지에 빨간색 십자가 그리기 (수직선은 확대된 후에 그림)
-                    Scalar redColor = new Scalar(0, 0, 255); // BGR 순서로 빨간색
-                    int thickness = 10; // 선 두께
+                // 새 중심 좌표 계산
+                int newCenterX = displayMat.Width / 2;
+                int newCenterY = displayMat.Height / 2;
 
-                    // 새 중심 좌표 계산
-                    int newCenterX = displayMat.Width / 2;
-                    int newCenterY = displayMat.Height / 2;
+                // 가로선
+                Cv2.Line(displayMat, new OpenCvSharp.Point(0, newCenterY), new OpenCvSharp.Point(displayMat.Width, newCenterY), redColor, thickness);
 
-                    // 가로선
-                    Cv2.Line(displayMat, new OpenCvSharp.Point(0, newCenterY), new OpenCvSharp.Point(displayMat.Width, newCenterY), redColor, thickness);
+                // 세로선 (확대 후에 그림)
+                Cv2.Line(displayMat, new OpenCvSharp.Point(newCenterX, 0), new OpenCvSharp.Point(newCenterX, displayMat.Height), redColor, thickness);
 
-                    // 세로선 (확대 후에 그림)
-                    Cv2.Line(displayMat, new OpenCvSharp.Point(newCenterX, 0), new OpenCvSharp.Point(newCenterX, displayMat.Height), redColor, thickness);
+                // Mat을 Bitmap으로 변환하여 PictureBox에 표시
+                Bitmap bitmap = BitmapConverter.ToBitmap(displayMat);
+                pictureBox1.Image = bitmap;
 
-                    // Mat을 Bitmap으로 변환하여 PictureBox에 표시
-                    Bitmap bitmap = BitmapConverter.ToBitmap(displayMat);
-                    pictureBox1.Image = bitmap;
+                // 메모리 해제
+                displayMat.Dispose();
 
-                    // 메모리 해제
-                    displayMat.Dispose();
-
-                    // 레이블 업데이트
-                    label27.Text = count.ToString();
-                }));
-
-
-            };
-
+            }));
         }
         public void SetAllValues(string[] values)
         {
@@ -312,6 +325,8 @@ namespace MotorControl_WinForm
         }
         private void CustomMove(object sender, EventArgs e)
         {
+            if (isJogMode)
+                return;
             if (threadManager.IsWorkerRunning())
             {
                 MessageBox.Show("작업 중");
@@ -350,6 +365,8 @@ namespace MotorControl_WinForm
         }
         private void JogButton_MouseDown(object sender, MouseEventArgs e)
         {
+            if (!isJogMode)
+                return;
             if (sender is Button button && button.Tag is string tagValue)
             {
                 // 문자열 "1,0"을 ','로 분리하여 튜플로 변환
@@ -364,6 +381,8 @@ namespace MotorControl_WinForm
         }
         private void JogButton_MouseUp(object sender, MouseEventArgs e)
         {
+            if (!isJogMode)
+                return;
             if (sender is Button button && button.Tag is string tagValue)
             {
                 // 문자열 "1,0"을 ','로 분리하여 튜플로 변환
@@ -386,7 +405,7 @@ namespace MotorControl_WinForm
             if (int.TryParse(tb_PositionMove_X.Text, out int positionX) && int.TryParse(tb_PositionMove_Y.Text, out int positionY) && int.TryParse(tb_PositionMove_Z.Text, out int positionZ))
             {
                 int[] position = { positionX, positionY, positionZ };
-                threadManager.AddWorkerTask(() => motorControlManager.PositionMove(position));
+                threadManager.AddWorkerTask(() => motorControlManager.Sequence(positionX, positionY, positionZ));
             }
             else
             {
@@ -418,43 +437,9 @@ namespace MotorControl_WinForm
 
         }
 
-        private void btn_Sequence1_Click(object sender, EventArgs e)
-        {
-            if (threadManager.IsWorkerRunning())
-            {
-                MessageBox.Show("작업 중");
-                return;
-            }
-            threadManager.AddWorkerTask(() =>
-            {
-                int s1 = 16000;
-                int s2 = 221000;
-                int s3 = 150000;
-                int s4 = -52000;
-                motorControlManager.Sequence1(s1, s2, s3, s4);
-            });
-
-        }
-
-        private void btn_Sequence2_Click(object sender, EventArgs e)
-        {
-            if (threadManager.IsWorkerRunning())
-            {
-                MessageBox.Show("작업 중");
-                return;
-            }
-            threadManager.AddWorkerTask(() =>
-            {
-                int s1 = 16000;
-                int s2 = 9000;
-                int s3 = 292000;
-                int s4 = -7300;
-                motorControlManager.Sequence2(s1, s2, s3, s4);
-            });
-        }
-
         private void button1_Click(object sender, EventArgs e)
         {
+            isProcessingImg = false;
             cameraManager.Start();
         }
 
@@ -463,249 +448,11 @@ namespace MotorControl_WinForm
             cameraManager.Stop();
         }
 
-        private void button3_Click(object sender, EventArgs e)
+        private void btn_ImgSave_Click(object sender, EventArgs e)
         {
-
-            // 타이머 시작
-            try
-            {
-
-                Mat src = img.Clone();
-                Mat gray = new Mat();
-                Mat binary = new Mat();
-                Mat dil_ero = new Mat();
-                Cv2.CvtColor(src, gray, ColorConversionCodes.BGR2GRAY);
-
-                Cv2.NamedWindow("binary");
-                Cv2.NamedWindow("dil_ero");
-
-                int val = 0, val2 = 0, val3 = 0;
-
-                Cv2.CreateTrackbar("threshold", "binary", ref val, 255);
-                Cv2.CreateTrackbar("dilate", "dil_ero", ref val2, 20);
-                Cv2.CreateTrackbar("erode", "dil_ero", ref val3, 20);
-
-                Mat element1 = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
-
-                while (true)
-                {
-                    val = Cv2.GetTrackbarPos("threshold", "binary");
-                    val2 = Cv2.GetTrackbarPos("dilate", "dil_ero");
-                    val3 = Cv2.GetTrackbarPos("erode", "dil_ero");
-
-                    Cv2.Threshold(gray, binary, val, 255, ThresholdTypes.Binary);
-                    Cv2.ImShow("binary", binary);
-
-                    Cv2.Dilate(binary, binary, element1, null, val2);
-                    Cv2.Erode(binary, binary, element1, null, val3);
-
-                    Cv2.ImShow("dil_ero", binary);
-
-                    if (Cv2.WaitKey(30) == 27) // ESC 키
-                        break;
-                }
-
-                //Mat Thre_clone = binary.Clone();
-                //Cv2.Dilate(binary, binary, element1, null, 10);  //팽창
-                //Cv2.Erode(binary, binary, element1, null, 7);   //침식
-                //Cv2.Resize(binary, binary, new OpenCvSharp.Size(800, 800));
-                //Cv2.ImShow("binary2", binary);
-
-
-                OpenCvSharp.Point[][] contours;
-                HierarchyIndex[] hierarchy;
-
-                Cv2.FindContours(binary, out contours, out hierarchy, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
-                //log.Info("FindContours.OK");
-
-                //Cv2.DrawContours(src, contours, -1, new Scalar(0, 0, 255), 5, LineTypes.Link8, null, 1);
-                //Cv2.Resize(src, src, new OpenCvSharp.Size(800, 800));
-                //Cv2.ImShow("contours", src);
-                //크기 비교 - 중간 네모 찾기
-                List<OpenCvSharp.Point[]> new_contours = new List<OpenCvSharp.Point[]>();
-                List<OpenCvSharp.Point> center = new List<OpenCvSharp.Point>();
-
-                List<int> list_area = new List<int>();
-                List<int> list_round = new List<int>();
-
-                foreach (OpenCvSharp.Point[] p in contours)
-                {
-                    double area = Cv2.ContourArea(p);
-                    double round = Cv2.ArcLength(p, true);
-                    if (area > Constants.AREA_LOW && area < Constants.AREA_HIGH && round > Constants.ROUND_LOW && round < Constants.ROUND_HIGH)
-                    {
-                        new_contours.Add(p);
-                        Moments M = Cv2.Moments(p);
-
-                        list_area.Add((int)area);
-                        list_round.Add((int)round);
-
-                        int x = (int)(M.M10 / M.M00);
-                        int y = (int)(M.M01 / M.M00);
-                        center.Add(new OpenCvSharp.Point(x, y));
-                    }
-
-                }
-                list_area.Sort();
-                list_round.Sort();
-                int areaMin = list_area[0];
-                int areaMax = list_area[list_area.Count - 1];
-                int roundMin = list_round[0];
-                int roundMax = list_round[list_round.Count - 1];
-
-
-
-                Cv2.DrawContours(src, new_contours, -1, new Scalar(0, 0, 255), 5, LineTypes.Link8, null, 1);
-
-                //1. 센터값 정렬
-                center.Sort((p1, p2) => p1.Y.CompareTo(p2.Y));
-                //2. y값이 최대인 점 식별
-                OpenCvSharp.Point Y_max = center[0];
-                //3. 기울기 식별
-                double m = 0;
-                //3-1. 가장 가까운 점 2곳 식별
-                OpenCvSharp.Point close1 = new OpenCvSharp.Point();
-                OpenCvSharp.Point close2 = new OpenCvSharp.Point();
-                double dis_close1 = double.MaxValue; // 초기화: 최대값으로 설정
-                double dis_close2 = double.MaxValue;
-
-                foreach (OpenCvSharp.Point p in center)
-                {
-                    if (p == Y_max) // 본인 제외
-                        continue;
-
-                    double currentDistance = Math.Sqrt(Math.Pow(p.X - Y_max.X, 2) + Math.Pow(p.Y - Y_max.Y, 2));
-
-                    if (currentDistance < dis_close1)
-                    {
-                        // 기존 close1을 close2로 밀어냄
-                        close2 = close1;
-                        dis_close2 = dis_close1;
-
-                        // close1 갱신
-                        close1 = p;
-                        dis_close1 = currentDistance;
-                    }
-                    else if (currentDistance < dis_close2)
-                    {
-                        // close2만 갱신
-                        close2 = p;
-                        dis_close2 = currentDistance;
-                    }
-                }
-                //3-2. y값이 근사한 점을 찾아, dx/dy로 기울기를 구함
-                if (Math.Abs(Y_max.Y - close1.Y) < Math.Abs(Y_max.Y - close2.Y))
-                    m = (double)(Y_max.Y - close1.Y) / (double)(Y_max.X - close1.X);
-                else
-                    m = (double)(Y_max.Y - close2.Y) / (double)(Y_max.X - close2.X);
-
-                double Threshold = 0.07;
-                //6. 4,5를 반복해 다음 점들이 없을때 까지 반복
-                List<List<OpenCvSharp.Point>> rows = new List<List<OpenCvSharp.Point>>();
-                while (center.Count > 0)
-                {
-                    List<OpenCvSharp.Point> removePoint = new List<OpenCvSharp.Point>();
-                    List<OpenCvSharp.Point> currentRow = new List<OpenCvSharp.Point>();
-                    foreach (OpenCvSharp.Point p in center)
-                    {
-                        if (Y_max == p)
-                        {
-                            currentRow.Add(p);
-                            removePoint.Add(p);
-                            continue;
-                        }
-                        double p_m = ((double)(Y_max.Y - p.Y) / (double)(Y_max.X - p.X));
-                        if (p_m > m - Threshold && p_m < m + Threshold)
-                        {
-                            currentRow.Add(p);
-                            removePoint.Add(p);
-                        }
-                    }
-
-                    foreach (OpenCvSharp.Point p in removePoint)
-                        center.Remove(p);
-                    if (center.Count > 0)
-                        Y_max = center[0];
-                    rows.Add(currentRow);
-                }
-                //4. y값이 최대인 점에서 기울기에 근사한 점들을 모두 구함
-                //5. 다음 좌표는, 4번의 점들을 뺀 나머지중 y값이 최대인 점으로 함.
-                // 각 행을 x 좌표 기준으로 정렬
-                foreach (var row in rows)
-                {
-                    row.Sort((p1, p2) => p1.X.CompareTo(p2.X));
-                }
-
-                // 행별로 선을 잇고 번호를 출력
-                //HersheyFonts font = HersheyFonts.HersheySimplex;
-                int count = 1;
-                for (int i = 0; i < rows.Count; i++)
-                {
-                    if (i % 2 == 0)
-                    {
-                        for (int j = 0; j < rows[i].Count; j++)
-                        {
-                            // 번호 출력
-                            //Cv2.PutText(src, $"{count}", rows[i][j], font, 3, new Scalar(255, 0, 0), 3);
-                            Cv2.Circle(src, rows[i][j], 10, new Scalar(0, 255, 0), -1, LineTypes.AntiAlias);
-
-                            count++;
-
-                            // 선 그리기 (다음 점이 있는 경우에만)
-                            if (j < rows[i].Count - 1)
-                            {
-                                Cv2.Line(src, rows[i][j], rows[i][j + 1], new Scalar(255, 0, 0), 10, LineTypes.AntiAlias);
-                            }
-                        }
-
-                        // 다음 행이 있는 경우, 행 끝과 다음 행의 시작을 연결
-                        if (i < rows.Count - 1)
-                        {
-                            Cv2.Line(src, rows[i][rows[i].Count - 1], rows[i + 1][rows[i + 1].Count - 1], new Scalar(255, 0, 0), 10, LineTypes.AntiAlias);
-                        }
-                    }
-                    else
-                    {
-                        for (int j = 0; j < rows[i].Count; j++)
-                        {
-                            int reverse_j = rows[i].Count - j - 1;
-                            // 번호 출력
-                            //Cv2.PutText(src, $"{count}", rows[i][reverse_j], font, 3, new Scalar(255, 0, 0), 3);
-                            Cv2.Circle(src, rows[i][reverse_j], 10, new Scalar(0, 255, 0), -1, LineTypes.AntiAlias);
-                            count++;
-
-                            // 선 그리기 (다음 점이 있는 경우에만)
-                            if (j < rows[i].Count - 1)
-                            {
-                                Cv2.Line(src, rows[i][reverse_j], rows[i][reverse_j - 1], new Scalar(255, 0, 0), 10, LineTypes.AntiAlias);
-                            }
-                        }
-
-                        // 다음 행이 있는 경우, 행 끝과 다음 행의 시작을 연결
-                        if (i < rows.Count - 1)
-                        {
-                            Cv2.Line(src, rows[i][0], rows[i + 1][0], new Scalar(255, 0, 0), 10, LineTypes.AntiAlias);
-                        }
-                    }
-                }
-                Cv2.Resize(src, src, new OpenCvSharp.Size(800, 800));
-                Cv2.ImShow("contours", src);
-
-            }
-            catch (Exception ex) { }
+            imageProcessing.Init(img, motorControlManager);
+            threadManager.AddWorkerTask(() => imageProcessing.SaveMatImage(Constants.Path));
         }
-        private void button4_Click(object sender, EventArgs e)
-        {
-            ImageProcessing imgProcessor = new ImageProcessing(img, motorControlManager);
-            threadManager.AddWorkerTask(() => imgProcessor.Start());
-        }
-
-        private void button6_Click(object sender, EventArgs e)
-        {
-            ImageProcessing imgProcessor = new ImageProcessing(img, motorControlManager);
-            threadManager.AddWorkerTask(() => imgProcessor.SaveMatImage(Constants.Path));
-        }
-
         private void btn_Constants_Change_Click(object sender, EventArgs e)
         {
             textFileManager.SetValue(ColumnIndex.AREA_LOW, tb_AREA_LOW.Text);
@@ -731,7 +478,6 @@ namespace MotorControl_WinForm
             {
                 btn_Expanded.FlatStyle = FlatStyle.Popup; // 눌린 스타일
                 btn_Expanded.BackColor = SystemColors.ControlDark; // 눌린 배경색
-               // btn_Expanded.Text = "접기"; // 버튼 텍스트 변경
                 tb_Expanded.ReadOnly = true;
             }
             else
@@ -740,8 +486,8 @@ namespace MotorControl_WinForm
                 btn_Expanded.BackColor = SystemColors.ControlLight; // 기본 배경색
                 //btn_Expanded.Text = "확장"; // 버튼 텍스트 변경
                 tb_Expanded.ReadOnly = false;
-
             }
+            ShowImg();
         }
 
         private void btn_Fullscreen_Click(object sender, EventArgs e)
@@ -796,9 +542,9 @@ namespace MotorControl_WinForm
         {
             // 텍스트박스 값 읽기
             string name = tb_SaveName.Text;
-            string P_X = tb_PositionMove_X.Text;
-            string P_Y = tb_PositionMove_Y.Text;
-            string P_Z = tb_PositionMove_Z.Text;
+            string P_X = tb_Position_X.Text;
+            string P_Y = tb_Position_Y.Text;
+            string P_Z = tb_Position_Z.Text;
 
             // 값이 비어있는지 확인
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(P_X) || string.IsNullOrEmpty(P_Y) || string.IsNullOrEmpty(P_Z))
@@ -818,6 +564,7 @@ namespace MotorControl_WinForm
             textFileManager.SetValue(ColumnIndex.SAVEXYZ, val);
 
             UpdatePanel();
+            tb_SaveName.Text = "";
             //TextBox textBox = new TextBox();
             //textBox.Location = new System.Drawing.Point(100, currentY);
 
@@ -853,45 +600,161 @@ namespace MotorControl_WinForm
                 // 라벨 1: Name
                 Label lblName = new Label();
                 lblName.Text = name;
+                lblName.Size = new System.Drawing.Size(50, 20); // 너비 70, 높이 20
                 lblName.Location = new System.Drawing.Point(10, yOffset);
                 panel_SaveXYZ.Controls.Add(lblName);
 
                 // 라벨 2: X
                 Label lblX = new Label();
                 lblX.Text = pX;
-                lblX.Location = new System.Drawing.Point(150, yOffset);
+                lblX.AutoSize = true;
+                lblX.Size = new System.Drawing.Size(20, 20); // 너비 50, 높이 20
+                lblX.Location = new System.Drawing.Point(60, yOffset);
                 panel_SaveXYZ.Controls.Add(lblX);
 
                 // 라벨 3: Y
                 Label lblY = new Label();
                 lblY.Text = pY;
-                lblY.Location = new System.Drawing.Point(250, yOffset);
+                lblY.AutoSize = true;
+                lblY.Size = new System.Drawing.Size(20, 20);
+                lblY.Location = new System.Drawing.Point(95, yOffset);
                 panel_SaveXYZ.Controls.Add(lblY);
 
                 // 라벨 4: Z
                 Label lblZ = new Label();
                 lblZ.Text = pZ;
-                lblZ.Location = new System.Drawing.Point(350, yOffset);
+                lblZ.AutoSize = true;
+                lblZ.Size = new System.Drawing.Size(20, 20);
+                lblZ.Location = new System.Drawing.Point(130, yOffset);
                 panel_SaveXYZ.Controls.Add(lblZ);
 
                 // 이동 버튼
                 Button btnMove = new Button();
-                btnMove.Text = "Move";
+                btnMove.Text = "이동";
+                btnMove.Size = new System.Drawing.Size(40, 20);
                 btnMove.Tag = new string[] { pX, pY, pZ }; // X, Y, Z 값을 Tag에 저장
-                btnMove.Location = new System.Drawing.Point(450, yOffset);
-                //btnMove.Click += BtnMove_Click; // 이벤트 핸들러 연결
+                btnMove.Location = new System.Drawing.Point(160, yOffset - 5);
+                btnMove.Click += SequenceMove_Click; // 이벤트 핸들러 연결
                 panel_SaveXYZ.Controls.Add(btnMove);
 
                 // 삭제 버튼
                 Button btnDelete = new Button();
-                btnDelete.Text = "Delete";
-                btnDelete.Tag = name; // Name을 Tag에 저장
-                btnDelete.Location = new System.Drawing.Point(550, yOffset);
-                //btnDelete.Click += BtnDelete_Click; // 이벤트 핸들러 연결
+                btnDelete.Text = "삭제";
+                btnDelete.Size = new System.Drawing.Size(40, 20);
+                btnDelete.Tag = i; // i(인덱스)를 Tag에 저장
+                btnDelete.Location = new System.Drawing.Point(210, yOffset - 5);
+                btnDelete.Click += DeleteXYZ_Click; // 이벤트 핸들러 연결
                 panel_SaveXYZ.Controls.Add(btnDelete);
 
                 // Y축 위치 업데이트 (다음 항목을 아래로 배치)
-                yOffset += 40; // 각 항목마다 40px씩 아래로 내려감
+                yOffset += 30; // 각 항목마다 30px씩 아래로 내려감
+            }
+
+        }
+        private void SequenceMove_Click(object sender, EventArgs e)
+        {
+            Button btn = sender as Button;
+            string[] coordinates = btn.Tag as string[];
+
+            if (coordinates != null)
+            {
+                int pX = int.Parse(coordinates[0]);
+                int pY = int.Parse(coordinates[1]);
+                int pZ = int.Parse(coordinates[2]);
+
+                if (threadManager.IsWorkerRunning())
+                {
+                    MessageBox.Show("작업 중");
+                    return;
+                }
+                threadManager.AddWorkerTask(() =>
+                {
+                    try
+                    {
+                        motorControlManager.Sequence(pX, pY, pZ);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 에러 메시지 로그 출력 또는 UI 알림
+                        Debug.WriteLine($"Error: {ex.Message}");
+                    }
+                });
+            }
+        }
+        private void DeleteXYZ_Click(object sender, EventArgs e)
+        {
+            Button btn = sender as Button;
+            if (btn == null || btn.Tag == null)
+                return;
+
+            int index = (int)btn.Tag; // 버튼에 저장된 인덱스 가져오기
+
+            textFileManager.DeleteXYZ(index); // 파일에서 해당 항목 삭제
+            UpdatePanel(); // UI 갱신
+        }
+
+        private void btn_HomeReturn_Click(object sender, EventArgs e)
+        {
+            HomeReturn();
+        }
+
+        private void btn_ImgProcessing_Click(object sender, EventArgs e)
+        {
+            if (img == null || img.Empty())
+            {
+                MessageBox.Show("Error: 이미지가 비어 있습니다.");
+                return;
+            }
+            if (isProcessingImg)
+            {
+                MessageBox.Show("Error: 이미 처리된 이미지입니다.");
+                return;
+            }
+            if (threadManager.IsWorkerRunning())
+            {
+                MessageBox.Show("작업 중");
+                return;
+            }
+            threadManager.AddWorkerTask(() =>
+            {
+                try
+                {
+                    cameraManager.Stop();
+                    Thread.Sleep(500);
+                    imageProcessing.Init(img, motorControlManager);
+                    imageProcessing.SaveMatImage(Constants.Path);
+                    imageProcessing.Start();
+                }
+                catch (Exception ex)
+                {
+                    // 에러 메시지 로그 출력 또는 UI 알림
+                    Debug.WriteLine($"Error: {ex.Message}");
+                }
+            });
+
+        }
+
+        private void btn_ExpansionCustom_Click(object sender, EventArgs e)
+        {
+            CustomMove moveForm = new CustomMove(threadManager, motorControlManager);
+            moveForm.Show();
+        }
+
+        private void btn_ChangeJogMode_Click(object sender, EventArgs e)
+        {
+            // isExpanded 상태 토글
+            isJogMode = !isJogMode;
+
+            // 버튼의 눌린 현상 추가
+            if (isJogMode)
+            {
+                btn_ChangeJogMode.FlatStyle = FlatStyle.Popup; // 눌린 스타일
+                btn_ChangeJogMode.BackColor = SystemColors.ControlDark; // 눌린 배경색
+            }
+            else
+            {
+                btn_ChangeJogMode.FlatStyle = FlatStyle.Standard; // 기본 스타일
+                btn_ChangeJogMode.BackColor = SystemColors.ControlLight; // 기본 배경색
             }
         }
     }

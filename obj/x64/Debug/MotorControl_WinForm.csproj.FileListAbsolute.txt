@@ -7,7 +7,6 @@ C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Deb
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorControl_WinForm.csproj.CoreCompileInputs.cache
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorControl_WinForm.exe
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorControl_WinForm.pdb
-C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorControl_WinForm.Form1.resources
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\bin\x64\Debug\Basler.Pylon.xml
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorCon.5AF72B94.Up2Date
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\bin\x64\Debug\OpenCvSharpExtern.dll
@@ -26,3 +25,5 @@ C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\bin\x64\Deb
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\bin\x64\Debug\OpenCvSharp.Extensions.xml
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\bin\x64\Debug\System.Drawing.Common.pdb
 C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\bin\x64\Debug\System.Drawing.Common.xml
+C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorControl_WinForm.Main.resources
+C:\Users\JECS\source\repos\MotorControl_WinForm\MotorControl_WinForm\obj\x64\Debug\MotorControl_WinForm.CustomMove.resources

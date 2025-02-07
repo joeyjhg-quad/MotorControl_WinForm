@@ -1,4 +1,4 @@
-speed 300
+speed 280
 actime 1000
 dctime 1000
 AREA_LOW 2300
@@ -9,8 +9,8 @@ offset 161.8
 N*N 11
 EmptyCount 3
 ExposureTime 3000
-Path EMPTY
+Path C:\Users\JECS\Downloads
 SaveXYZ 3
-test1 12 34 56
-test2 45 56 67
-test3 1 2 3
+case1 74840 226179 -8305
+123 1000 2000 0
+2 74840 225179 -8305

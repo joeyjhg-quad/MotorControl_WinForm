@@ -20,12 +20,22 @@ namespace MotorControl_WinForm
         double offset = Constants.offset;
         int arrSize = Constants.size;
         int emptyCount = Constants.emptyCount;
-        public ImageProcessing(Mat inputImg, MotorControlManager motorManager)
+        public event Action<Mat> OnProcessingCompleted;
+
+        public ImageProcessing()
+        {
+
+        }
+
+        public void Init(Mat inputImg, MotorControlManager motorManager)
         {
             img = inputImg.Clone();
             motorControlManager = motorManager;
             detectedCenters = new List<OpenCvSharp.Point>();
             rows = new List<List<OpenCvSharp.Point>>();
+            offset = Constants.offset;
+            arrSize = Constants.size;
+            emptyCount = Constants.emptyCount;
         }
 
         public void Start()
@@ -40,8 +50,8 @@ namespace MotorControl_WinForm
                 ProcessImage();
                 FindContoursAndCenters();
                 SortCentersIntoGrid();
-                ProcessGrid();
-                //ProcessGrid_MasterImg();
+                //ProcessGrid();
+                ProcessGrid_MasterImg();
                 ShowContours();
                 //NumberAndMove();
             }
@@ -77,12 +87,12 @@ namespace MotorControl_WinForm
             detectedCenters.Clear();
 
             //test
-            Mat contourImg = img.Clone();
-            Cv2.CvtColor(contourImg, contourImg, ColorConversionCodes.GRAY2BGR);
-            Cv2.DrawContours(contourImg, contours, -1, Scalar.Red, 2); // 모든 컨투어를 빨간색으로 그림
-            Cv2.Resize(contourImg, contourImg, new OpenCvSharp.Size(600, 600));
-            Cv2.ImShow("Detected Contours", contourImg);
-            Cv2.WaitKey(0); // 1ms 동안 대기 (UI 멈추는 것 방지)
+            //Mat contourImg = img.Clone();
+            //Cv2.CvtColor(contourImg, contourImg, ColorConversionCodes.GRAY2BGR);
+            //Cv2.DrawContours(contourImg, contours, -1, Scalar.Red, 2); // 모든 컨투어를 빨간색으로 그림
+            //Cv2.Resize(contourImg, contourImg, new OpenCvSharp.Size(600, 600));
+            //Cv2.ImShow("Detected Contours", contourImg);
+            //Cv2.WaitKey(0); // 1ms 동안 대기 (UI 멈추는 것 방지)
 
             foreach (OpenCvSharp.Point[] contour in contours)
             {
@@ -246,13 +256,13 @@ namespace MotorControl_WinForm
             // 기준점 3개 찾기
             Point p1 = rows[0][0]; // 1행 1번째
             Point p2 = rows[0][4]; // 1행 5번째
-            Point p3 = rows[10][0]; // 11행 1번째
-            Point p4 = rows[10][4]; // 11행 5번째
+            Point p3 = rows[rows.Count - 1][0]; // 11행 1번째
+            Point p4 = rows[rows.Count - 1][4]; // 11행 5번째
 
             // 기울기 계산
-            double m1 = GetSlope(rows[0][0], rows[0][4]);
-            double m2 = GetSlope(rows[10][0], rows[10][4]);
-            double m3 = GetSlope(rows[0][0], rows[10][0]);
+            double m1 = GetSlope(p1, p2);
+            double m2 = GetSlope(p3, p4);
+            double m3 = GetSlope(p1, p3);
             double m3_rotated = (m3 == 0) ? double.PositiveInfinity : (m3 == double.PositiveInfinity ? 0 : -1 / m3);
 
             // 기울기 평균값 계산
@@ -390,10 +400,11 @@ namespace MotorControl_WinForm
             }
 
             // 결과 이미지 표시
-            Cv2.Resize(resultImg, resultImg, new OpenCvSharp.Size(800, 800));
-            Cv2.ImShow("Contours", resultImg);
-            Cv2.WaitKey(0);
-            Cv2.DestroyAllWindows();
+            //Cv2.Resize(resultImg, resultImg, new OpenCvSharp.Size(800, 800));
+            //Cv2.ImShow("Contours", resultImg);
+            //Cv2.WaitKey(0);
+            //Cv2.DestroyAllWindows();
+            OnProcessingCompleted?.Invoke(resultImg.Clone());
         }
 
 
@@ -520,7 +531,7 @@ namespace MotorControl_WinForm
             // 파일 경로가 올바른지 확인
             if (string.IsNullOrEmpty(filePath) || !Directory.Exists(filePath))
             {
-                Console.WriteLine("Error: 지정된 경로가 올바르지 않습니다.");
+                MessageBox.Show("Error: 지정된 경로가 올바르지 않습니다.");
                 return;
             }
 

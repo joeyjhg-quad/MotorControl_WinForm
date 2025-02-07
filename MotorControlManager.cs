@@ -247,21 +247,32 @@ namespace MotorControl_WinForm
                 }
             }
         }
-        public void Sequence1(int pos1, int pos2, int pos3, int pos4)
-        {
-            Logger.Log("Sequence1 start");
 
-            int[] positionsArray = { pos1, pos2, pos3, pos4 };
-            int count = 0;
+        public void Sequence(int x, int y, int z)
+        {
+            Logger.Log("Sequence start");
+
+            int[] positionsArray = { x, y };
             int currentPosition = 0;
             int moveDistance = 0;
 
-            for (int i = 4; i > 0; i--)
+            // 1️⃣ Z축을 15000으로 먼저 이동
+            int initialZ = 15000;
+            ans = sscGetCurrentCmdPositionFast(board_id, channel, 3, out currentPosition);
+            if (ans != SSC_OK)
             {
-                // 순서 : 3축+ 2축 1축 3축-
-                int axisNumber = (i + 1) % 3 + 1;
+                Debug.WriteLine($"sscGetCurrentCmdPositionFast failed for Z-axis. sscGetLastError=0x{sscGetLastError():X}\n");
+                return;
+            }
+            moveDistance = initialZ - currentPosition;
+            CustomMove(3, moveDistance); // Z축 이동
+            WaitForAxis(3); // Z축이 완료될 때까지 대기
 
-                // 현재 명령 위치 가져오기
+            // 2️⃣ X, Y 이동
+            for (int i = 0; i < 2; i++)
+            {
+                int axisNumber = i + 1; // X: 1, Y: 2
+
                 ans = sscGetCurrentCmdPositionFast(board_id, channel, axisNumber, out currentPosition);
                 if (ans != SSC_OK)
                 {
@@ -269,128 +280,67 @@ namespace MotorControl_WinForm
                     return;
                 }
 
-                moveDistance = positionsArray[count] - currentPosition;
+                moveDistance = positionsArray[i] - currentPosition;
                 CustomMove(axisNumber, moveDistance);
-                count++;
-
-                // n초 동안 sscGetDriveFinStatus로 상태 확인
-                const int TIMEOUT_SEC = 10; // 최대 대기 시간 (초)
-                const int CHECK_INTERVAL_MS = 100; // 상태 확인 간격 (밀리초)
-
-                for (int elapsedTime = 0; elapsedTime < TIMEOUT_SEC * 1000; elapsedTime += CHECK_INTERVAL_MS)
-                {
-                    int finStatus = 0;
-                    ans = sscGetDriveFinStatus(board_id, channel, axisNumber, SSC_FIN_TYPE_SMZ, out finStatus);
-
-                    if (ans != SSC_OK)
-                    {
-                        Debug.WriteLine($"sscGetDriveFinStatus failed for axis {axisNumber}. sscGetLastError=0x{sscGetLastError():X}\n");
-                        return; // 에러 발생 시 종료
-                    }
-
-                    // 운전 완료 상태 확인
-                    if (finStatus == SSC_FIN_STS_STP) // 운전 완료 상태
-                    {
-                        Debug.WriteLine($"Axis {axisNumber}: Drive finished successfully.\n");
-                        break;
-                    }
-                    else if (finStatus == SSC_FIN_STS_ALM_STP || finStatus == SSC_FIN_STS_ALM_MOV) // 알람 상태
-                    {
-                        Debug.WriteLine($"Axis {axisNumber}: Alarm detected. Status={finStatus}\n");
-                        switch (axisNumber)
-                        {
-                            case 1:
-                                axis1.CheckAlarm();
-                                break;
-                            case 2:
-                                axis2.CheckAlarm();
-                                break;
-                            case 3:
-                                axis3.CheckAlarm();
-                                break;
-                            default:
-                                break;
-                        }
-                        return; // 알람 발생 시 종료
-                    }
-
-                    // 상태 확인 간격 대기
-                    Thread.Sleep(CHECK_INTERVAL_MS);
-                }
+                WaitForAxis(axisNumber); // 이동 완료 대기
             }
-            Logger.Log("Sequence1 end");
+
+            // 3️⃣ 마지막으로 Z축을 원하는 값으로 이동
+            ans = sscGetCurrentCmdPositionFast(board_id, channel, 3, out currentPosition);
+            if (ans != SSC_OK)
+            {
+                Debug.WriteLine($"sscGetCurrentCmdPositionFast failed for Z-axis. sscGetLastError=0x{sscGetLastError():X}\n");
+                return;
+            }
+            moveDistance = z - currentPosition;
+            CustomMove(3, moveDistance);
+            WaitForAxis(3); // 최종 Z축 이동 완료 대기
+
+            Logger.Log("Sequence end");
         }
-        public void Sequence2(int pos1, int pos2, int pos3, int pos4)
+        private void WaitForAxis(int axisNumber)
         {
-            Logger.Log("Sequence2 start");
-            int[] positionsArray = { pos1, pos2, pos3, pos4 };
-            int count = 0;
-            int currentPosition = 0;
-            int moveDistance = 0;
+            const int TIMEOUT_SEC = 10;
+            const int CHECK_INTERVAL_MS = 100;
 
-            for (int i = 0; i < 4; i++)
+            for (int elapsedTime = 0; elapsedTime < TIMEOUT_SEC * 1000; elapsedTime += CHECK_INTERVAL_MS)
             {
-                // 순서 : 3축+ 1축 2축 3축-
-                int axisNumber = (i + 2) % 3 + 1;
+                int finStatus = 0;
+                ans = sscGetDriveFinStatus(board_id, channel, axisNumber, SSC_FIN_TYPE_SMZ, out finStatus);
 
-                // 현재 명령 위치 가져오기
-                ans = sscGetCurrentCmdPositionFast(board_id, channel, axisNumber, out currentPosition);
                 if (ans != SSC_OK)
                 {
-                    Debug.WriteLine($"sscGetCurrentCmdPositionFast failed for axis {axisNumber}. sscGetLastError=0x{sscGetLastError():X}\n");
+                    Debug.WriteLine($"sscGetDriveFinStatus failed for axis {axisNumber}. sscGetLastError=0x{sscGetLastError():X}\n");
                     return;
                 }
 
-                moveDistance = positionsArray[count] - currentPosition;
-                CustomMove(axisNumber, moveDistance);
-                count++;
-
-                // n초 동안 sscGetDriveFinStatus로 상태 확인
-                const int TIMEOUT_SEC = 10; // 최대 대기 시간 (초)
-                const int CHECK_INTERVAL_MS = 100; // 상태 확인 간격 (밀리초)
-
-                for (int elapsedTime = 0; elapsedTime < TIMEOUT_SEC * 1000; elapsedTime += CHECK_INTERVAL_MS)
+                if (finStatus == SSC_FIN_STS_STP) // 이동 완료 상태
                 {
-                    int finStatus = 0;
-                    ans = sscGetDriveFinStatus(board_id, channel, axisNumber, SSC_FIN_TYPE_SMZ, out finStatus);
-
-                    if (ans != SSC_OK)
-                    {
-                        Debug.WriteLine($"sscGetDriveFinStatus failed for axis {axisNumber}. sscGetLastError=0x{sscGetLastError():X}\n");
-                        return; // 에러 발생 시 종료
-                    }
-
-                    // 운전 완료 상태 확인
-                    if (finStatus == SSC_FIN_STS_STP) // 운전 완료 상태
-                    {
-                        Debug.WriteLine($"Axis {axisNumber}: Drive finished successfully.\n");
-                        break;
-                    }
-                    else if (finStatus == SSC_FIN_STS_ALM_STP || finStatus == SSC_FIN_STS_ALM_MOV) // 알람 상태
-                    {
-                        Debug.WriteLine($"Axis {axisNumber}: Alarm detected. Status={finStatus}\n");
-                        switch (axisNumber)
-                        {
-                            case 1:
-                                axis1.CheckAlarm();
-                                break;
-                            case 2:
-                                axis2.CheckAlarm();
-                                break;
-                            case 3:
-                                axis3.CheckAlarm();
-                                break;
-                            default:
-                                break;
-                        }
-                        return; // 알람 발생 시 종료
-                    }
-
-                    // 상태 확인 간격 대기
-                    Thread.Sleep(CHECK_INTERVAL_MS);
+                    Debug.WriteLine($"Axis {axisNumber}: Drive finished successfully.\n");
+                    break;
                 }
+                else if (finStatus == SSC_FIN_STS_ALM_STP || finStatus == SSC_FIN_STS_ALM_MOV) // 알람 상태
+                {
+                    Debug.WriteLine($"Axis {axisNumber}: Alarm detected. Status={finStatus}\n");
+                    switch (axisNumber)
+                    {
+                        case 1:
+                            axis1.CheckAlarm();
+                            break;
+                        case 2:
+                            axis2.CheckAlarm();
+                            break;
+                        case 3:
+                            axis3.CheckAlarm();
+                            break;
+                        default:
+                            break;
+                    }
+                    return;
+                }
+
+                Thread.Sleep(CHECK_INTERVAL_MS);
             }
-            Logger.Log("Sequence2 end");
         }
 
         public void HomeReturn()
