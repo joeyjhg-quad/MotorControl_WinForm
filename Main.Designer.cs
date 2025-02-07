@@ -738,7 +738,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(335, 628);
+            this.button1.Location = new System.Drawing.Point(359, 628);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(111, 100);
             this.button1.TabIndex = 12;
@@ -749,7 +749,7 @@
             // label27
             // 
             this.label27.AutoSize = true;
-            this.label27.Location = new System.Drawing.Point(368, 744);
+            this.label27.Location = new System.Drawing.Point(394, 744);
             this.label27.Name = "label27";
             this.label27.Size = new System.Drawing.Size(44, 12);
             this.label27.TabIndex = 13;
@@ -757,7 +757,7 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(463, 628);
+            this.button2.Location = new System.Drawing.Point(476, 628);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(111, 100);
             this.button2.TabIndex = 12;
@@ -1070,7 +1070,7 @@
             this.panel_SaveXYZ.AutoScroll = true;
             this.panel_SaveXYZ.Location = new System.Drawing.Point(12, 606);
             this.panel_SaveXYZ.Name = "panel_SaveXYZ";
-            this.panel_SaveXYZ.Size = new System.Drawing.Size(295, 132);
+            this.panel_SaveXYZ.Size = new System.Drawing.Size(341, 132);
             this.panel_SaveXYZ.TabIndex = 19;
             // 
             // btn_ImgProcessing

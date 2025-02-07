@@ -32,7 +32,6 @@ namespace MotorControl_WinForm
         bool isExpanded = false;
         bool isProcessingImg = false;
         bool isJogMode = false;
-        int currentY = 10;
         //Camera  camera;
         public Main()
         {
@@ -608,7 +607,7 @@ namespace MotorControl_WinForm
                 Label lblX = new Label();
                 lblX.Text = pX;
                 lblX.AutoSize = true;
-                lblX.Size = new System.Drawing.Size(20, 20); // 너비 50, 높이 20
+                lblX.Size = new System.Drawing.Size(30, 20); // 너비 50, 높이 20
                 lblX.Location = new System.Drawing.Point(60, yOffset);
                 panel_SaveXYZ.Controls.Add(lblX);
 
@@ -616,16 +615,16 @@ namespace MotorControl_WinForm
                 Label lblY = new Label();
                 lblY.Text = pY;
                 lblY.AutoSize = true;
-                lblY.Size = new System.Drawing.Size(20, 20);
-                lblY.Location = new System.Drawing.Point(95, yOffset);
+                lblY.Size = new System.Drawing.Size(30, 20);
+                lblY.Location = new System.Drawing.Point(105, yOffset);
                 panel_SaveXYZ.Controls.Add(lblY);
 
                 // 라벨 4: Z
                 Label lblZ = new Label();
                 lblZ.Text = pZ;
                 lblZ.AutoSize = true;
-                lblZ.Size = new System.Drawing.Size(20, 20);
-                lblZ.Location = new System.Drawing.Point(130, yOffset);
+                lblZ.Size = new System.Drawing.Size(30, 20);
+                lblZ.Location = new System.Drawing.Point(150, yOffset);
                 panel_SaveXYZ.Controls.Add(lblZ);
 
                 // 이동 버튼
@@ -633,7 +632,7 @@ namespace MotorControl_WinForm
                 btnMove.Text = "이동";
                 btnMove.Size = new System.Drawing.Size(40, 20);
                 btnMove.Tag = new string[] { pX, pY, pZ }; // X, Y, Z 값을 Tag에 저장
-                btnMove.Location = new System.Drawing.Point(160, yOffset - 5);
+                btnMove.Location = new System.Drawing.Point(190, yOffset - 5);
                 btnMove.Click += SequenceMove_Click; // 이벤트 핸들러 연결
                 panel_SaveXYZ.Controls.Add(btnMove);
 
@@ -642,7 +641,7 @@ namespace MotorControl_WinForm
                 btnDelete.Text = "삭제";
                 btnDelete.Size = new System.Drawing.Size(40, 20);
                 btnDelete.Tag = i; // i(인덱스)를 Tag에 저장
-                btnDelete.Location = new System.Drawing.Point(210, yOffset - 5);
+                btnDelete.Location = new System.Drawing.Point(240, yOffset - 5);
                 btnDelete.Click += DeleteXYZ_Click; // 이벤트 핸들러 연결
                 panel_SaveXYZ.Controls.Add(btnDelete);
 
